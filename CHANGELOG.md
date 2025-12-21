@@ -1,3 +1,25 @@
+## [Unreleased]
+
+### Features
+
+* **Python Library Template**: Complete adaptation to Python library template with modern tooling
+  - Added uv for fast package management (replaces pip/venv/poetry)
+  - Added ruff for linting and formatting (replaces black/isort/flake8)
+  - Added mypy for strict type checking
+  - Added pytest with coverage for testing
+  - Configured pyproject.toml as single source of truth for all tooling
+  - Implemented dual publishing to PyPI and GCP Artifact Registry
+  - Added comprehensive sample code with type hints and tests
+  - Updated all documentation with Python-specific workflows
+  - Updated CI/CD workflows for Python testing and publishing
+  - Enhanced setup.sh and scaffold.sh for Python project scaffolding
+
+### Breaking Changes
+
+* Template is now Python-specific (renamed from nv-lib-template to nv-pylib-template)
+* Requires Python 3.12+ and uv package manager
+* Version management moved from version.txt to pyproject.toml
+
 ## [1.16.0](https://github.com/cloudvoyant/nv-lib-template/compare/v1.15.0...v1.16.0) (2025-11-17)
 
 ### Features

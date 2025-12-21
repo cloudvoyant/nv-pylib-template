@@ -32,28 +32,31 @@ _default:
 # Install dependencies
 [group('dev')]
 install:
-    @echo -e "{{WARN}}TODO: Implement install{{NORMAL}}"
+    uv sync --all-extras
 
 # Build the project
 [group('dev')]
 build:
-    @echo -e "{{WARN}}TODO: Implement build for $_PROJECT@$VERSION{{NORMAL}}"
+    uv build
 
 # Run project locally
 [group('dev')]
-run: build
-    @echo -e "{{WARN}}TODO: Implement run{{NORMAL}}"
+run:
+    uv run python -m nv_pylib_template
 
 # Run tests
 [group('dev')]
-test: build
-    @echo -e "{{WARN}}TODO: Implement test{{NORMAL}}"
+test:
+    uv run pytest test/ --cov=src --cov-report=term-missing:skip-covered --cov-report=html -q
 
 # Clean build artifacts
 [group('dev')]
 clean:
     @rm -rf .nv
-    @echo -e "{{WARN}}TODO: Implement clean{{NORMAL}}"
+    @rm -rf dist/ build/ *.egg-info/
+    @rm -rf .pytest_cache/ .mypy_cache/ .ruff_cache/
+    @find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+    @echo -e "{{SUCCESS}}Cleaned build artifacts{{NORMAL}}"
 
 # ==============================================================================
 # DOCKER
@@ -83,22 +86,27 @@ setup *ARGS:
 # Format code
 [group('utils')]
 format *PATHS:
-    @echo -e "{{WARN}}TODO: Implement formatting{{NORMAL}}"
+    uv run ruff format src/ test/
 
 # Check code formatting (CI mode)
 [group('utils')]
 format-check *PATHS:
-    @echo -e "{{WARN}}TODO: Implement format checking{{NORMAL}}"
+    uv run ruff format --check src/ test/
 
 # Lint code
 [group('utils')]
 lint *PATHS:
-    @echo -e "{{WARN}}TODO: Implement linting{{NORMAL}}"
+    uv run ruff check src/ test/
 
 # Lint and auto-fix issues
 [group('utils')]
 lint-fix *PATHS:
-    @echo -e "{{WARN}}TODO: Implement lint auto-fixing{{NORMAL}}"
+    uv run ruff check --fix src/ test/
+
+# Type check code
+[group('utils')]
+type-check:
+    uv run mypy src/
 
 # Upgrade to newer template version (requires Claude Code)
 [group('utils')]
@@ -170,7 +178,7 @@ upversion *ARGS:
 
 # Publish the project
 [group('ci')]
-publish: test build-prod
+publish: test build
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -180,14 +188,45 @@ publish: test build-prod
     fi
 
     echo -e "{{INFO}}Publishing package $PROJECT@$VERSION{{NORMAL}}"
-    gcloud artifacts generic upload \
-        --project=$GCP_REGISTRY_PROJECT_ID \
-        --location=$GCP_REGISTRY_REGION \
-        --repository=$GCP_REGISTRY_NAME \
-        --package=$PROJECT \
-        --version=$VERSION \
-        --source=dist/artifact.txt
-    echo -e "{{SUCCESS}}Published.{{NORMAL}}"
+
+    # Publish to PyPI if token is available
+    # if [ -n "${PYPI_TOKEN:-}" ]; then
+    #     echo -e "{{INFO}}Publishing to PyPI...{{NORMAL}}"
+    #     uv publish --token "$PYPI_TOKEN"
+    #     echo -e "{{SUCCESS}}Published to PyPI{{NORMAL}}"
+    # else
+    #     echo -e "{{WARN}}PYPI_TOKEN not set, skipping PyPI publish{{NORMAL}}"
+    # fi
+
+    # Publish to GCP Artifact Registry if credentials are available
+    if [ -n "${GCP_REGISTRY_PROJECT_ID:-}" ] && [ -n "${GCP_REGISTRY_REGION:-}" ] && [ -n "${GCP_REGISTRY_NAME:-}" ]; then
+        echo -e "{{INFO}}Publishing to GCP Artifact Registry...{{NORMAL}}"
+
+        # GCP Artifact Registry requires twine for Python packages
+        if ! command -v twine &> /dev/null; then
+            echo -e "{{ERROR}}twine not installed. Install with: uv tool install twine{{NORMAL}}"
+            exit 1
+        fi
+
+        # Configure twine for GCP Artifact Registry
+        export TWINE_REPOSITORY_URL="https://${GCP_REGISTRY_REGION}-python.pkg.dev/${GCP_REGISTRY_PROJECT_ID}/${GCP_REGISTRY_NAME}/"
+
+        # Use service account key in CI, ADC locally
+        if [ -n "${GCP_SA_KEY:-}" ]; then
+            # CI: Use service account JSON key
+            export TWINE_USERNAME=_json_key_base64
+            export TWINE_PASSWORD=$(echo "${GCP_SA_KEY}" | base64)
+        else
+            # Local: Use gcloud ADC token
+            export TWINE_USERNAME=oauth2accesstoken
+            export TWINE_PASSWORD=$(gcloud auth print-access-token)
+        fi
+
+        twine upload dist/*
+        echo -e "{{SUCCESS}}Published to GCP Artifact Registry{{NORMAL}}"
+    else
+        echo -e "{{WARN}}GCP variables not set, skipping GCP publish{{NORMAL}}"
+    fi
 
 # ==============================================================================
 # TEMPLATE

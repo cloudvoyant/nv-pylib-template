@@ -40,8 +40,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Setup just
         uses: extractions/setup-just@v2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Setup environment
         run: bash scripts/setup.sh --ci
@@ -49,12 +62,8 @@ jobs:
       - name: Run tests
         run: |
           source .envrc
+          just install
           just test
-
-      - name: Run template tests
-        run: |
-          source .envrc
-          just test-template
 
       - name: Check formatting
         run: |
@@ -66,9 +75,19 @@ jobs:
           source .envrc
           just lint
 
+      - name: Run type checking
+        run: |
+          source .envrc
+          just type-check
+
+      - name: Build package
+        run: |
+          source .envrc
+          just build
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: src/
+          path: dist/
           retention-days: 7

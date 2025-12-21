@@ -6,7 +6,7 @@ Usage: setup.sh [OPTIONS]
 
 Options:
   --dev              Install development tools (docker, shellcheck, shfmt, claude)
-  --ci               Install CI essentials (node/npx, gcloud)
+  --ci               Install CI essentials (node/npx, gcloud, twine)
   --template         Install template development tools (bats-core)
   --starship         Install and configure starship prompt
   --docker-optimize  Optimize for Docker image size (consolidate operations, aggressive cleanup)
@@ -15,6 +15,8 @@ Flags can be combined: setup.sh --dev --template --starship --docker-optimize
 
 Required dependencies (always installed):
 - bash (shell)
+- python3.12+ (Python runtime)
+- uv (Python package manager)
 - just (command runner)
 - direnv (environment management)
 
@@ -22,6 +24,7 @@ Development tools (--dev):
 - docker (containerization)
 - node/npx (for semantic-release)
 - gcloud (Google Cloud SDK)
+- twine (for publishing to GCP Artifact Registry)
 - shellcheck (shell script linter)
 - shfmt (shell script formatter)
 - claude (Claude CLI)
@@ -30,6 +33,7 @@ Development tools (--dev):
 CI essentials (--ci):
 - node/npx (for semantic-release)
 - gcloud (Google Cloud SDK)
+- twine (for publishing to GCP Artifact Registry)
 - bats-core (bash testing framework)
 - parallel (parallel test execution)
 
@@ -81,9 +85,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --template    Install template development tools"
             echo "  -h, --help    Show this help message"
             echo ""
-            echo "Required: bash, just, direnv"
-            echo "Development (--dev): docker, node/npx, gcloud, shellcheck, shfmt, claude, claudevoyant plugin"
-            echo "CI (--ci): docker, node/npx, gcloud"
+            echo "Required: bash, python3.12+, uv, just, direnv"
+            echo "Development (--dev): docker, node/npx, gcloud, twine, shellcheck, shfmt, claude, claudevoyant plugin"
+            echo "CI (--ci): docker, node/npx, gcloud, twine"
             echo "Template (--template): bats-core"
             exit 0
             ;;
@@ -149,6 +153,135 @@ install_bash() {
     esac
 
     log_success "Bash installation completed"
+}
+
+# Install Python 3.12+ based on platform
+install_python() {
+    log_info "Checking Python installation"
+
+    local required_version="3.12"
+
+    # Check if pyenv is installed and use it if available
+    if command_exists pyenv; then
+        log_info "Found pyenv - using it to manage Python"
+
+        # Check if Python 3.12 is already installed via pyenv
+        if pyenv versions --bare | grep -q "^3\.12"; then
+            log_success "Python 3.12 already installed via pyenv"
+            # Make sure it's activated
+            if [ -f ".python-version" ]; then
+                pyenv local 3.12
+            fi
+            return 0
+        fi
+
+        log_info "Installing Python 3.12 via pyenv"
+        # Install latest 3.12.x version
+        local latest_312=$(pyenv install --list | grep -E "^\s*3\.12\.[0-9]+$" | tail -1 | tr -d ' ')
+        if [ -n "$latest_312" ]; then
+            pyenv install "$latest_312"
+            if [ -f ".python-version" ]; then
+                pyenv local "$latest_312"
+            fi
+            log_success "Python $latest_312 installed via pyenv"
+            return 0
+        else
+            log_warn "Could not find Python 3.12 in pyenv - falling back to system install"
+        fi
+    fi
+
+    # Check if python3 is already available and meets version requirement
+    if command_exists python3; then
+        local current_version=$(python3 --version 2>/dev/null | cut -d' ' -f2 | cut -d'.' -f1,2)
+        if [ -n "$current_version" ]; then
+            # Use awk for version comparison (more portable than bc)
+            if awk -v cur="$current_version" -v req="$required_version" 'BEGIN { exit (cur >= req) ? 0 : 1 }'; then
+                log_success "Python $current_version already installed"
+                return 0
+            fi
+        fi
+    fi
+
+    log_info "Installing Python 3.12+ via system package manager"
+
+    case $PLATFORM in
+    Mac)
+        if command_exists brew; then
+            brew install python@3.12
+        else
+            log_warn "Homebrew not found. Please install Python 3.12+ manually or install pyenv"
+            return 1
+        fi
+        ;;
+    Linux)
+        if command_exists apt-get; then
+            sudo apt-get update
+            sudo apt-get install -y python3.12 python3.12-venv python3-pip
+        elif command_exists yum; then
+            sudo yum install -y python3.12
+        elif command_exists pacman; then
+            sudo pacman -S python
+        else
+            log_warn "Unsupported Linux distribution. Please install Python 3.12+ manually or install pyenv"
+            return 1
+        fi
+        ;;
+    *)
+        log_warn "Unsupported platform. Please install Python 3.12+ manually or install pyenv"
+        return 1
+        ;;
+    esac
+
+    log_success "Python installation completed"
+}
+
+# Install uv (fast Python package manager)
+install_uv() {
+    log_info "Installing uv"
+
+    if command_exists uv; then
+        log_success "uv already installed"
+        return 0
+    fi
+
+    # Install using official installer
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Add to PATH for current session
+    export PATH="$HOME/.cargo/bin:$PATH"
+
+    if command_exists uv; then
+        log_success "uv installation completed"
+        log_info "Version: $(uv --version)"
+    else
+        log_warn "uv installation may require shell restart. Add ~/.cargo/bin to PATH"
+    fi
+}
+
+# Install twine (for publishing to GCP Artifact Registry)
+install_twine() {
+    log_info "Installing twine"
+
+    if command_exists twine; then
+        log_success "twine already installed"
+        return 0
+    fi
+
+    # Require uv to be installed first
+    if ! command_exists uv; then
+        log_error "uv is required to install twine"
+        return 1
+    fi
+
+    # Install using uv tool
+    uv tool install twine
+
+    if command_exists twine; then
+        log_success "twine installation completed"
+        log_info "Version: $(twine --version)"
+    else
+        log_warn "twine installation may require shell restart"
+    fi
 }
 
 # Install just based on platform
@@ -633,13 +766,13 @@ install_claudevoyant_plugin() {
 # Check and install dependencies
 check_dependencies() {
     log_info "Checking dependencies"
-    log_info "Required: bash, just, direnv"
+    log_info "Required: bash, python3.12+, uv, just, direnv"
 
     if [ "$INSTALL_DEV" = true ]; then
-        log_info "Development tools: docker, node/npx, gcloud, shellcheck, shfmt, claude, claudevoyant plugin (will be installed)"
+        log_info "Development tools: docker, node/npx, gcloud, twine, shellcheck, shfmt, claude, claudevoyant plugin (will be installed)"
     fi
     if [ "$INSTALL_CI" = true ]; then
-        log_info "CI essentials: node/npx, gcloud, bats-core, parallel (will be installed)"
+        log_info "CI essentials: node/npx, gcloud, twine, bats-core, parallel (will be installed)"
     fi
     if [ "$INSTALL_TEMPLATE" = true ]; then
         log_info "Template development: bats-core, parallel (will be installed)"
@@ -696,6 +829,47 @@ check_dependencies() {
         fi
     fi
 
+    # Check Python 3.12+ (REQUIRED)
+    current=$((current + 1))
+    progress_step $current "Checking Python 3.12+ (required)"
+
+    # Temporarily unset PYENV_VERSION to check actual Python availability
+    local saved_pyenv_version="${PYENV_VERSION:-}"
+    unset PYENV_VERSION
+
+    if command_exists python3 && python3 --version >/dev/null 2>&1; then
+        local python_version=$(python3 --version 2>/dev/null | cut -d' ' -f2)
+        log_success "Python is already installed: $python_version"
+    else
+        log_warn "Python not found or not working"
+        if install_python; then
+            log_success "Python installed successfully"
+        else
+            log_error "Failed to install Python - please install Python 3.12+ manually and re-run setup"
+            failed_required=1
+        fi
+    fi
+
+    # Restore PYENV_VERSION if it was set
+    if [ -n "$saved_pyenv_version" ]; then
+        export PYENV_VERSION="$saved_pyenv_version"
+    fi
+
+    # Check uv (REQUIRED)
+    current=$((current + 1))
+    progress_step $current "Checking uv (required)"
+    if command_exists uv; then
+        log_success "uv is already installed: $(uv --version)"
+    else
+        log_warn "uv not found"
+        if install_uv; then
+            log_success "uv installed successfully"
+        else
+            log_error "Failed to install uv - visit https://docs.astral.sh/uv/ to install manually and re-run setup"
+            failed_required=1
+        fi
+    fi
+
     # Check direnv (REQUIRED)
     current=$((current + 1))
     progress_step $current "Checking direnv (required)"
@@ -715,6 +889,18 @@ check_dependencies() {
     if [ $failed_required -eq 1 ]; then
         log_error "Required dependencies are missing. Please install them and re-run setup."
         exit 1
+    fi
+
+    # Sync Python dependencies if pyproject.toml exists
+    if [ -f "$(dirname "$0")/../pyproject.toml" ]; then
+        log_info "Syncing Python dependencies with uv"
+        # Ensure Python is available before running uv sync
+        if command_exists python3 && python3 --version >/dev/null 2>&1; then
+            cd "$(dirname "$0")/.." && uv sync
+            log_success "Python dependencies installed"
+        else
+            log_warn "Python not available - skipping uv sync. Run 'just install' manually after setup."
+        fi
     fi
 
     # OPTIONAL DEPENDENCIES --------------------------------------------------------
@@ -779,6 +965,22 @@ check_dependencies() {
                 log_success "Google Cloud SDK installed successfully"
             else
                 log_warn "Skipping gcloud - install manually from https://cloud.google.com/sdk/docs/install if needed"
+            fi
+        fi
+    fi
+
+    # Check twine (for --dev or --ci)
+    if [ "$INSTALL_DEV" = true ] || [ "$INSTALL_CI" = true ]; then
+        current=$((current + 1))
+        progress_step $current "Checking twine"
+        if command_exists twine; then
+            log_success "twine is already installed: $(twine --version)"
+        else
+            log_warn "twine not found (needed for publishing to GCP Artifact Registry)"
+            if install_twine; then
+                log_success "twine installed successfully"
+            else
+                log_warn "Skipping twine - install manually with 'uv tool install twine' if needed"
             fi
         fi
     fi

@@ -10,6 +10,13 @@ permissions:
   issues: write
   pull-requests: write
 
+# Required GitHub Secrets:
+# - PYPI_TOKEN: PyPI API token (from https://pypi.org/manage/account/token/)
+# - GCP_SA_KEY: GCP service account JSON key (for Artifact Registry, optional)
+# - GCP_REGISTRY_PROJECT_ID: GCP project ID (optional)
+# - GCP_REGISTRY_REGION: GCP region (optional)
+# - GCP_REGISTRY_NAME: GCP Artifact Registry name (optional)
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -45,8 +52,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Setup just
         uses: extractions/setup-just@v2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Setup environment
         run: ./scripts/setup.sh --ci
@@ -54,12 +74,8 @@ jobs:
       - name: Run tests
         run: |
           source .envrc
+          just install
           just test
-
-      - name: Run template tests
-        run: |
-          source .envrc
-          just test-template
 
       - name: Create new version
         id: upversion
@@ -68,13 +84,21 @@ jobs:
           CI: true
         run: just upversion --ci
 
-      - name: Build production artifacts
+      - name: Build package
         if: steps.upversion.outputs.new_release_published == 'true'
         run: |
           source .envrc
-          just build-prod
+          just build
 
-      - name: Authenticate with registry
+      - name: Publish to PyPI
+        if: steps.upversion.outputs.new_release_published == 'true' && env.PYPI_TOKEN != ''
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          source .envrc
+          uv publish --token "$PYPI_TOKEN"
+
+      - name: Authenticate with GCP
         if: steps.upversion.outputs.new_release_published == 'true' && env.GCP_SA_KEY != ''
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -83,14 +107,21 @@ jobs:
           GCP_REGISTRY_NAME: ${{ secrets.GCP_REGISTRY_NAME }}
         run: just registry-login --ci
 
-      - name: Publish package
+      - name: Publish to GCP Artifact Registry
         if: steps.upversion.outputs.new_release_published == 'true' && env.GCP_SA_KEY != ''
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_REGISTRY_PROJECT_ID: ${{ secrets.GCP_REGISTRY_PROJECT_ID }}
           GCP_REGISTRY_REGION: ${{ secrets.GCP_REGISTRY_REGION }}
           GCP_REGISTRY_NAME: ${{ secrets.GCP_REGISTRY_NAME }}
-        run: just publish
+        run: |
+          source .envrc
+          WHEEL_FILE=$(ls dist/*.whl | head -n 1)
+          gcloud artifacts python upload \
+            --project=$GCP_REGISTRY_PROJECT_ID \
+            --location=$GCP_REGISTRY_REGION \
+            --repository=$GCP_REGISTRY_NAME \
+            "$WHEEL_FILE"
 
       - name: Create GitHub Release
         if: steps.upversion.outputs.new_release_published == 'true'

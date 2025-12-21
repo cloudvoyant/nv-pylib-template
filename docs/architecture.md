@@ -2,9 +2,9 @@
 
 ## Overview
 
-`nv-lib-template` is a language-agnostic template for building projects with automated versioning, testing, and GitHub Action powered CI/CD workflows. Customize for any language by editing `justfile` recipes.
+`nv-pylib-template` is a Python library template with modern tooling, automated versioning, and dual publishing to PyPI and GCP Artifact Registry. Built with uv for fast dependency management, ruff for linting/formatting, mypy for type checking, and pytest for testing.
 
-GCP-forward by default (uses GCP Artifact Registry), but easily modified for npm, PyPI, Docker Hub, etc.
+Publishing targets both PyPI and GCP Artifact Registry by default, configurable via environment variables.
 
 ## How It Works
 
@@ -36,31 +36,31 @@ When you run a command like `just build`, here's what happens:
 
 For detailed setup instructions, see the [User Guide](user-guide.md#quick-start).
 
-After scaffolding a project from this template, run `/adapt` to customize it for your language (Python, Node.js, Go, Docker). Then interact with your project via `just` commands:
+After scaffolding a project from this template, interact with your project via `just` commands:
 
 ```bash
-just install    # Install project dependencies
-just build      # Build for development
-just test       # Run tests
-just publish    # Build prod + publish to registry
+just install     # Install dependencies with uv
+just build       # Build wheel and sdist
+just test        # Run tests with pytest + coverage
+just lint        # Lint code with ruff
+just format      # Format code with ruff
+just type-check  # Check types with mypy
+just publish     # Publish to PyPI and/or GCP
 ```
 
 To customize CI/CD behavior, edit scripts in the `scripts/` directory rather than modifying workflows directly.
 
-### Customization Points
+### Python Tooling Stack
 
-The `justfile` is where you define language-specific commands. Replace the TODO placeholders with your language's build/test/publish commands:
+This template uses modern Python tooling:
 
-```just
-build:
-    npm run build  # or python -m build, go build, cargo build
+- **uv**: Fast package manager (replaces pip/venv/poetry)
+- **ruff**: Linter and formatter (replaces black/isort/flake8/pylint)
+- **mypy**: Static type checker with strict mode
+- **pytest**: Test framework with coverage
+- **setuptools**: Build backend (traditional, widely compatible)
 
-test: build
-    npm test  # or pytest, go test ./..., cargo test
-
-publish: test build-prod
-    npm publish  # or twine upload, gcloud artifacts upload
-```
+All tool configurations live in `pyproject.toml` following PEP standards.
 
 Scripts in `scripts/` provide hooks for overriding CI/CD behavior:
 
@@ -143,9 +143,39 @@ Keep it simple with just `export` statements - no bash logic. This constraint pr
 
 ### Component: GitHub Actions
 
-Two workflows handle CI/CD with minimal configuration: `ci.yml` runs `just build` and `just test` on pull requests, while `release.yml` runs semantic-release on main branch and then `just publish` if a new version was created.
+Two workflows handle CI/CD with minimal configuration: `ci.yml` runs linting, type checking, tests, and builds on pull requests, while `release.yml` runs semantic-release on main branch and then publishes to PyPI and/or GCP Artifact Registry if a new version was created.
 
 The workflows call your just commands rather than duplicating logic, creating a single source of truth. This design means you can test CI behavior locally (`just test` runs the same way everywhere), debug faster, and upgrade workflows without touching project-specific logic. Customization happens in familiar territory (bash scripts and just recipes) rather than GitHub Actions YAML.
+
+### Python-Specific Design Decisions
+
+#### Version Management
+
+Version is stored in `pyproject.toml` as the single source of truth following PEP 621. `semantic-release` updates this file automatically, and `scripts/utils.sh` reads from it. The `uv.lock` file is committed to ensure reproducible builds and is updated during releases.
+
+#### Dual Publishing Strategy
+
+The `publish` recipe publishes to both PyPI and GCP Artifact Registry:
+
+1. **PyPI**: Primary target for public Python packages, uses `uv publish --token $PYPI_TOKEN`
+2. **GCP Artifact Registry**: Optional secondary target for private packages, uses `gcloud artifacts python upload`
+
+Both are conditional based on environment variables. Skip either by not setting the required secrets.
+
+#### Package Structure
+
+Follows PEP 420 namespace package structure:
+- `src/package_name/` for source code (prevents accidental imports from working directory)
+- `test/` for tests (separate from source, avoids packaging tests)
+- `py.typed` marker for PEP 561 type information
+- `__init__.py` exports public API and version
+
+#### Tooling Rationale
+
+- **uv over pip**: 10-100x faster, better dependency resolution, built-in virtualenv management
+- **ruff over black/flake8**: Single tool replaces 5+ tools, written in Rust for speed
+- **mypy strict mode**: Catches errors at development time, improves IDE experience
+- **setuptools over flit/poetry**: Widely compatible, supports C extensions if needed later
 
 ### Component: Claude Commands
 

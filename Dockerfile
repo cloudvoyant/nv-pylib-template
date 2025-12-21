@@ -10,23 +10,53 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sudo \
     git \
-    ca-certificates
+    ca-certificates \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev
 
 # Create non-root user
 RUN useradd -m -s /bin/bash vscode && \
     echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Copy setup scripts
+# Copy setup scripts and project files needed for Python installation
 COPY scripts /tmp/scripts
+COPY .python-version /tmp/.python-version
+COPY pyproject.toml /tmp/pyproject.toml
 
-# Install required dependencies only (bash, just, direnv)
-RUN cd /tmp/scripts && \
-    chmod +x setup.sh && \
-    ./setup.sh --docker-optimize && \
-    rm -rf /tmp/scripts
+# Install system-level required dependencies as root (bash, just, direnv, python3.12)
+RUN cd /tmp && \
+    chmod +x scripts/setup.sh && \
+    scripts/setup.sh --docker-optimize
 
+# Switch to vscode user for user-level installations
 USER vscode
+
+# Install uv as vscode user and sync dependencies
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    export PATH="$HOME/.cargo/bin:$PATH" && \
+    cd /tmp && \
+    uv sync --all-extras
+
+# Cleanup
+USER root
+RUN rm -rf /tmp/scripts /tmp/.python-version /tmp/pyproject.toml
+USER vscode
+
 WORKDIR /workspaces
+
+# Add uv to PATH
+ENV PATH="/home/vscode/.cargo/bin:${PATH}"
 
 # Configure direnv to auto-allow .envrc files (dev container convenience)
 RUN mkdir -p ~/.config/direnv && \

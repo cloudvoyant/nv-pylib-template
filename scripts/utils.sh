@@ -166,14 +166,14 @@ get_git_repo_name() {
     echo "$repo_url" | sed 's|.*/||' | sed 's|\.git.*||'
 }
 
-# Get current version from version.txt
+# Get current version from pyproject.toml
 get_version() {
     local version=""
-    local version_file="${PROJECT_ROOT}/version.txt"
+    local pyproject_file="${PROJECT_ROOT}/pyproject.toml"
 
-    # Read from version.txt if it exists
-    if [ -f "$version_file" ]; then
-        version=$(cat "$version_file" | tr -d '[:space:]')
+    # Read from pyproject.toml if it exists
+    if [ -f "$pyproject_file" ]; then
+        version=$(grep '^version = ' "$pyproject_file" | sed 's/version = "\(.*\)"/\1/')
         if [[ -n "$version" ]]; then
             echo "$version"
             return 0

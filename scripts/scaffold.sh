@@ -169,6 +169,11 @@ words_to_flat() {
     echo "$1" | tr -d '\n'
 }
 
+# Convert word array to python_package_name (snake_case, lowercase)
+words_to_python_package() {
+    echo "$1" | tr '\n' '_' | sed 's/_$//' | tr '[:upper:]' '[:lower:]'
+}
+
 # GET TEMPLATE NAME AND VERSION -----------------------------------------------
 log_info "Detecting template name and version"
 
@@ -305,6 +310,9 @@ PROJECT_KEBAB=$(words_to_kebab "$PROJECT_WORDS")
 PROJECT_PASCAL=$(words_to_pascal "$PROJECT_WORDS")
 PROJECT_CAMEL=$(words_to_camel "$PROJECT_WORDS")
 PROJECT_FLAT=$(words_to_flat "$PROJECT_WORDS")
+PROJECT_PYTHON_PACKAGE=$(words_to_python_package "$PROJECT_WORDS")
+
+log_info "Project names: kebab=$PROJECT_KEBAB, python=$PROJECT_PYTHON_PACKAGE"
 
 # Replace in all text files (excluding binary files and .git)
 find "$DEST_DIR" -type f ! -path "*/.git/*" ! -path "$DEST_DIR/.nv/*" 2>/dev/null | while IFS= read -r file; do
@@ -331,9 +339,6 @@ fi
 
 # Copy template to destination
 cp "$ENVRC_TEMPLATE" "$ENVRC_FILE"
-
-# Create version.txt with initial version
-echo "0.1.0" > "$DEST_DIR/version.txt"
 
 # Update PROJECT name
 sed_inplace "s/__PROJECT_NAME__/$PROJECT_NAME/" "$ENVRC_FILE"
@@ -363,6 +368,36 @@ if ! grep -q "NV_TEMPLATE" "$ENVRC_FILE"; then
 fi
 
 log_success "Created and configured .envrc from template"
+
+# UPDATE PYTHON PACKAGE CONFIGURATION ------------------------------------------
+log_info "Configuring Python package"
+
+# Update pyproject.toml with project-specific names
+PYPROJECT_FILE="$DEST_DIR/pyproject.toml"
+if [ -f "$PYPROJECT_FILE" ]; then
+    log_info "Updating pyproject.toml"
+    sed_inplace "s/name = \".*\"/name = \"$PROJECT_KEBAB\"/" "$PYPROJECT_FILE"
+    sed_inplace "s/version = \".*\"/version = \"0.1.0\"/" "$PYPROJECT_FILE"
+    log_success "Updated pyproject.toml"
+fi
+
+# Rename Python package directory from template name to new project name
+TEMPLATE_PYTHON_PACKAGE=$(words_to_python_package "$TEMPLATE_WORDS")
+if [ -d "$DEST_DIR/src/$TEMPLATE_PYTHON_PACKAGE" ]; then
+    log_info "Renaming Python package directory to $PROJECT_PYTHON_PACKAGE"
+    mv "$DEST_DIR/src/$TEMPLATE_PYTHON_PACKAGE" "$DEST_DIR/src/$PROJECT_PYTHON_PACKAGE"
+    log_success "Renamed Python package directory"
+fi
+
+# Update imports in __init__.py
+if [ -f "$DEST_DIR/src/$PROJECT_PYTHON_PACKAGE/__init__.py" ]; then
+    sed_inplace "s/${TEMPLATE_PYTHON_PACKAGE}/${PROJECT_PYTHON_PACKAGE}/g" "$DEST_DIR/src/$PROJECT_PYTHON_PACKAGE/__init__.py"
+fi
+
+# Update imports in test files
+find "$DEST_DIR/test" -name "*.py" -type f -exec sed_inplace "s/${TEMPLATE_PYTHON_PACKAGE}/${PROJECT_PYTHON_PACKAGE}/g" {} \; 2>/dev/null || true
+
+log_success "Python package configuration complete"
 
 # CLEAN UP .CLAUDE/ DIRECTORY --------------------------------------------------
 if [ "$KEEP_CLAUDE" = false ]; then

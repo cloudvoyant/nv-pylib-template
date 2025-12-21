@@ -32,7 +32,6 @@ bower_components/
 vendor/
 
 # Package manager files
-*.lock
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -70,6 +69,18 @@ id_rsa*
 .npmrc
 .pypirc
 
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Python cache and tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # Cache and temporary files
 *.cache
 .cache/
@@ -88,7 +99,6 @@ coverage/
 .coverage
 .coverage.*
 htmlcov/
-.pytest_cache/
 .nyc_output/
 test-results/
 

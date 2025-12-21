@@ -1,30 +1,37 @@
-# nv-lib-template
+# nv-pylib-template
 
-![Version](https://img.shields.io/github/v/release/cloudvoyant/nv-lib-template?label=version)
-![Release](https://github.com/cloudvoyant/nv-lib-template/workflows/Release/badge.svg)
+![Version](https://img.shields.io/github/v/release/cloudvoyant/nv-pylib-template?label=version)
+![Release](https://github.com/cloudvoyant/nv-pylib-template/workflows/Release/badge.svg)
+![PyPI](https://img.shields.io/pypi/v/nv-pylib-template)
 
-`nv-lib-template` is a language-agnostic template for building projects with automated versioning, testing, and GitHub Action powered CI/CD workflows. It uses GCP Artifact Registry for publishing generic packages by default, but can be easily adapted for npm, PyPI, NuGet, CodeArtifact, etc.
+`nv-pylib-template` is a Python library template with modern tooling, automated versioning, and dual publishing to PyPI and GCP Artifact Registry. Built with uv for fast dependency management and includes ruff, mypy, and pytest for code quality.
 
 ## Features
 
 Here's what this template gives you off the bat:
 
-- A language-agnostic self-documenting command interface via `just`. Keep all your project commands organized in one file!
-- Auto-load environment variables and configure shell environment with `direnv` - share project scoped shell configurations and simplify scripting and CLI tool usage without needing to pass around flags and inline environment variables.
-- CI/CD with GitHub Actions - run test on MR commits, tag and release on merges to main.
-- Easy CI/CD customization with language-agnostic bash scripting - No need to get too deep into GitHub Actions for customization. Modify the publish recipe, set GitHub Secrets and you're good to go.
-- Trunk based development and automated versioning with conventional commits - semantic-release will handle version bumping for you! Work on feature branches and merge to main for bumps.
-- GCP Artifact Registry publishing (easily modified for other registries)
-- Cross-platform (macOS, Linux, Windows via WSL) - use the setup script to install dependencies, or alternately develop with Dev Containers or run tasks via Docker
+- **Modern Python tooling**: uv for fast dependency management, ruff for linting/formatting, mypy for type checking, pytest for testing
+- **Dual publishing**: Automatic publishing to both PyPI and GCP Artifact Registry
+- **Type safety**: Strict mypy configuration with comprehensive type hints
+- **Code quality**: Pre-configured ruff linter with sensible defaults
+- **Testing**: pytest with coverage reporting and parametrized test examples
+- **Command interface**: Self-documenting `just` recipes for all development tasks
+- **Environment management**: Auto-load environment variables with `direnv`
+- **CI/CD**: GitHub Actions for testing on PRs and automatic releases on main
+- **Semantic versioning**: Automated version bumping with conventional commits
+- **Cross-platform**: Works on macOS, Linux, Windows (WSL), and Dev Containers
 
 ## Requirements
 
 - bash 3.2+
-- just
+- Python 3.12+
+- uv (Python package manager)
+- just (command runner)
+- direnv (environment management)
 
-Run `just setup` to install remaining dependencies (just, direnv).
+Run `just setup` to install all required dependencies automatically.
 
-Optional: `just setup --dev` for development tools, `just setup --template` for template testing.
+Optional: `just setup --dev` for additional development tools (Docker, Claude CLI, etc.).
 
 ## Quick Start
 
@@ -41,45 +48,46 @@ cd <your-new-repo>
 bash scripts/scaffold.sh --project your-project-name
 ```
 
-Install dependencies and adapt the template for your needs:
+Install dependencies and start developing:
 
 ```bash
-just setup --dev        # Install all dependencies including Claude CLI and Claudevoyant plugin
-just scaffold           # Scaffold project - apply project name and reset version
-claude /adapt           # Guided customization for your language / package manager
+just setup              # Install Python, uv, and all dependencies
+just install            # Install project dependencies with uv
+just test               # Run tests with coverage
+just lint               # Run linter
+just format             # Format code
+just type-check         # Run type checker
+just build              # Build Python package
 ```
 
-Type `just` to see all the tasks at your disposal:
+Development workflow:
 
 ```bash
-❯ just
-Available recipes:
-    [dev]
-    load                 # Load environment
-    install              # Install dependencies
-    build                # Build the project
-    run                  # Run project locally
-    test                 # Run tests
-    clean                # Clean build artifacts
+# Make changes to your code
+just format             # Format code with ruff
+just lint               # Check code with ruff
+just type-check         # Verify types with mypy
+just test               # Run tests with pytest
 
-[ OUTPUT TRUNCATED ]
+# Build and publish
+just build              # Creates wheel and sdist in dist/
+just publish            # Publishes to PyPI and/or GCP Artifact Registry
 ```
 
-Build run and test with `just`. The template will show TODO messages in console prior to adapting.
+Publishing setup (add to GitHub secrets):
 
 ```bash
-❯ just run
-TODO: Implement build for nv-lib-template@1.9.1
-TODO: Implement run
+# Required for PyPI publishing
+PYPI_TOKEN              # Get from https://pypi.org/manage/account/token/
 
-❯ just test
-TODO: Implement build for nv-lib-template@1.9.1
-TODO: Implement test
+# Optional for GCP Artifact Registry
+GCP_SA_KEY              # GCP service account JSON key
+GCP_REGISTRY_PROJECT_ID # GCP project ID
+GCP_REGISTRY_REGION     # GCP region (e.g., us-east1)
+GCP_REGISTRY_NAME       # Artifact Registry name
 ```
 
-Note how just runs the necessary dependencies for a task on it's own!
-
-Commit using conventional commits (`feat:`, `fix:`, `docs:`). Merge/push to main and CI/CD will run automatically bumping your project version and publishing a package.
+Commit using conventional commits (`feat:`, `fix:`, `docs:`). Push to main and CI/CD will automatically version and publish your package.
 
 ## Documentation
 
@@ -95,11 +103,14 @@ To learn more about using this template, read the docs:
 
 ## References
 
+- [uv - Python package manager](https://docs.astral.sh/uv/)
+- [ruff - Python linter and formatter](https://docs.astral.sh/ruff/)
+- [mypy - Static type checker](https://mypy.readthedocs.io/)
+- [pytest - Testing framework](https://docs.pytest.org/)
 - [just command runner](https://github.com/casey/just)
 - [direnv environment management](https://direnv.net/)
 - [semantic-release](https://semantic-release.gitbook.io/)
-- [bats-core bash testing](https://bats-core.readthedocs.io/)
-- [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [GitHub Actions](https://docs.github.com/en/actions)
+- [PyPI Publishing](https://packaging.python.org/)
 - [GCP Artifact Registry](https://cloud.google.com/artifact-registry/docs)
