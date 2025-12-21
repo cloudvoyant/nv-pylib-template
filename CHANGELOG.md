@@ -1,3 +1,9 @@
+## 1.0.0 (2025-12-21)
+
+### Features
+
+* mvp for pylib template ready, needs further manual testing
+
 ## [Unreleased]
 
 ### Features
