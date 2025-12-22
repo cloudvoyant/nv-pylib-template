@@ -190,13 +190,13 @@ publish: test build
     echo -e "{{INFO}}Publishing package $PROJECT@$VERSION{{NORMAL}}"
 
     # Publish to PyPI if token is available
-    # if [ -n "${PYPI_TOKEN:-}" ]; then
-    #     echo -e "{{INFO}}Publishing to PyPI...{{NORMAL}}"
-    #     uv publish --token "$PYPI_TOKEN"
-    #     echo -e "{{SUCCESS}}Published to PyPI{{NORMAL}}"
-    # else
-    #     echo -e "{{WARN}}PYPI_TOKEN not set, skipping PyPI publish{{NORMAL}}"
-    # fi
+    if [ -n "${PYPI_TOKEN:-}" ]; then
+        echo -e "{{INFO}}Publishing to PyPI...{{NORMAL}}"
+        uv publish --token "$PYPI_TOKEN"
+        echo -e "{{SUCCESS}}Published to PyPI{{NORMAL}}"
+    else
+        echo -e "{{WARN}}PYPI_TOKEN not set, skipping PyPI publish{{NORMAL}}"
+    fi
 
     # Publish to GCP Artifact Registry if credentials are available
     if [ -n "${GCP_REGISTRY_PROJECT_ID:-}" ] && [ -n "${GCP_REGISTRY_REGION:-}" ] && [ -n "${GCP_REGISTRY_NAME:-}" ]; then
