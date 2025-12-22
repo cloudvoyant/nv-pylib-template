@@ -84,21 +84,7 @@ jobs:
           CI: true
         run: just upversion --ci
 
-      - name: Build package
-        if: steps.upversion.outputs.new_release_published == 'true'
-        run: |
-          source .envrc
-          just build
-
-      - name: Publish to PyPI
-        if: steps.upversion.outputs.new_release_published == 'true' && env.PYPI_TOKEN != ''
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          source .envrc
-          uv publish --token "$PYPI_TOKEN"
-
-      - name: Authenticate with GCP
+      - name: Authenticate with registry
         if: steps.upversion.outputs.new_release_published == 'true' && env.GCP_SA_KEY != ''
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -107,21 +93,15 @@ jobs:
           GCP_REGISTRY_NAME: ${{ secrets.GCP_REGISTRY_NAME }}
         run: just registry-login --ci
 
-      - name: Publish to GCP Artifact Registry
-        if: steps.upversion.outputs.new_release_published == 'true' && env.GCP_SA_KEY != ''
+      - name: Publish package
+        if: steps.upversion.outputs.new_release_published == 'true'
         env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GCP_REGISTRY_PROJECT_ID: ${{ secrets.GCP_REGISTRY_PROJECT_ID }}
           GCP_REGISTRY_REGION: ${{ secrets.GCP_REGISTRY_REGION }}
           GCP_REGISTRY_NAME: ${{ secrets.GCP_REGISTRY_NAME }}
-        run: |
-          source .envrc
-          WHEEL_FILE=$(ls dist/*.whl | head -n 1)
-          gcloud artifacts python upload \
-            --project=$GCP_REGISTRY_PROJECT_ID \
-            --location=$GCP_REGISTRY_REGION \
-            --repository=$GCP_REGISTRY_NAME \
-            "$WHEEL_FILE"
+        run: just publish
 
       - name: Create GitHub Release
         if: steps.upversion.outputs.new_release_published == 'true'
