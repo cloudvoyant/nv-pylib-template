@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/cloudvoyant/nv-pylib-template/compare/v1.0.0...v1.0.1) (2025-12-22)
+
+### Bug Fixes
+
+* resolving gcp publish error, making ci consisent with nv-lib-template
+
 ## 1.0.0 (2025-12-21)
 
 ### Features
