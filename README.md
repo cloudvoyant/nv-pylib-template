@@ -43,8 +43,8 @@ nv create your-project-name --platform nv-lib-template
 
 # Option 2: GitHub template + scaffold script
 # Click "Use this template" on GitHub, then:
-git clone <your-new-repo>
-cd <your-new-repo>
+git clone your-new-repo
+cd ./your-new-repo
 bash scripts/scaffold.sh --project your-project-name
 ```
 
