@@ -1,3 +1,9 @@
+## [1.0.3](https://github.com/cloudvoyant/nv-pylib-template/compare/v1.0.2...v1.0.3) (2025-12-23)
+
+### Bug Fixes
+
+* readme corrections, fixing PyPI shield
+
 ## [1.0.2](https://github.com/cloudvoyant/nv-pylib-template/compare/v1.0.1...v1.0.2) (2025-12-22)
 
 ### Bug Fixes
