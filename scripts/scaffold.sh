@@ -377,7 +377,7 @@ PYPROJECT_FILE="$DEST_DIR/pyproject.toml"
 if [ -f "$PYPROJECT_FILE" ]; then
     log_info "Updating pyproject.toml"
     sed_inplace "s/name = \".*\"/name = \"$PROJECT_KEBAB\"/" "$PYPROJECT_FILE"
-    sed_inplace "s/version = \".*\"/version = \"0.1.0\"/" "$PYPROJECT_FILE"
+    sed_inplace "s/^version = \".*\"/version = \"0.1.0\"/" "$PYPROJECT_FILE"
     log_success "Updated pyproject.toml"
 fi
 
@@ -501,6 +501,22 @@ if [ -f "$DEST_DIR/README.template.md" ]; then
     rm "$DEST_DIR/README.template.md"
     log_info "Removed README.template.md"
 fi
+
+# Delete CHANGELOG.md (new projects start fresh)
+rm -f "$DEST_DIR/CHANGELOG.md"
+
+# Delete template-specific architecture docs
+rm -f "$DEST_DIR/docs/architecture.md"
+
+# Delete template contribution guide
+rm -f "$DEST_DIR/docs/contributing.md"
+
+# Delete uv.lock (will be regenerated on first install)
+rm -f "$DEST_DIR/uv.lock"
+
+# Delete test coverage artifacts
+rm -f "$DEST_DIR/.coverage"
+rm -rf "$DEST_DIR/htmlcov"
 
 log_success "Removed template development files"
 

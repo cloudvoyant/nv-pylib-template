@@ -174,6 +174,78 @@ teardown() {
     [ -f "$DEST_DIR/scripts/setup.sh" ]
 }
 
+@test "removes template-specific files during scaffold" {
+    # Create files that should be deleted
+    touch "$SRC_DIR/CHANGELOG.md"
+    touch "$SRC_DIR/.coverage"
+    mkdir -p "$SRC_DIR/htmlcov"
+    touch "$SRC_DIR/htmlcov/index.html"
+    mkdir -p "$SRC_DIR/docs"
+    touch "$SRC_DIR/docs/architecture.md"
+    touch "$SRC_DIR/docs/contributing.md"
+    touch "$SRC_DIR/uv.lock"
+
+    bash ./scripts/scaffold.sh \
+        --src . \
+        --dest ../.. \
+        --non-interactive \
+        --project testproject
+
+    # Template development files should be removed
+    [ ! -f "$DEST_DIR/CHANGELOG.md" ]
+    [ ! -f "$DEST_DIR/.coverage" ]
+    [ ! -d "$DEST_DIR/htmlcov" ]
+    [ ! -f "$DEST_DIR/docs/architecture.md" ]
+    [ ! -f "$DEST_DIR/docs/contributing.md" ]
+    [ ! -f "$DEST_DIR/uv.lock" ]
+
+    # Other docs files should remain
+    [ -f "$DEST_DIR/docs/user-guide.md" ]
+}
+
+@test "updates pyproject.toml version without breaking ruff target-version" {
+    # Ensure source has both version fields
+    grep -q 'version = ".*"' "$SRC_DIR/pyproject.toml"
+    grep -q 'target-version = "py312"' "$SRC_DIR/pyproject.toml"
+
+    bash ./scripts/scaffold.sh \
+        --src . \
+        --dest ../.. \
+        --non-interactive \
+        --project testproject
+
+    # Should update project version to 0.1.0
+    run grep '^version = "0.1.0"' "$DEST_DIR/pyproject.toml"
+    [ "$status" -eq 0 ]
+
+    # Should NOT change ruff target-version
+    run grep 'target-version = "py312"' "$DEST_DIR/pyproject.toml"
+    [ "$status" -eq 0 ]
+
+    # Should NOT have changed to target-version = "0.1.0"
+    run grep 'target-version = "0.1.0"' "$DEST_DIR/pyproject.toml"
+    [ "$status" -eq 1 ]
+}
+
+@test "preserves show and hide recipes in scaffolded justfile" {
+    bash ./scripts/scaffold.sh \
+        --src . \
+        --dest ../.. \
+        --non-interactive \
+        --project testproject
+
+    # show and hide recipes should be preserved
+    run grep -q "^show:" "$DEST_DIR/justfile"
+    [ "$status" -eq 0 ]
+
+    run grep -q "^hide:" "$DEST_DIR/justfile"
+    [ "$status" -eq 0 ]
+
+    # Template section should still be removed
+    run grep -q "# TEMPLATE" "$DEST_DIR/justfile"
+    [ "$status" -eq 1 ]
+}
+
 @test "replaces README.md with template" {
     bash ./scripts/scaffold.sh \
         --src . \

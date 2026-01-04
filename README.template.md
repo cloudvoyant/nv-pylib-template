@@ -22,8 +22,11 @@
 ## Prerequisites
 
 - bash 3.2+
-- just
-- [List other required tools and dependencies]
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (installed via setup.sh)
+- [just](https://github.com/casey/just) (task runner)
+- [direnv](https://direnv.net/) (optional but recommended for environment management)
+- [List other project-specific dependencies]
 
 ## Setup
 

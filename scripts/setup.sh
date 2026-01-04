@@ -244,11 +244,28 @@ install_uv() {
         return 0
     fi
 
-    # Install using official installer
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-
-    # Add to PATH for current session
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # For Docker environments, install system-wide to /usr/local/bin
+    if [ "$DOCKER_OPTIMIZE" = true ]; then
+        log_info "Installing uv system-wide for Docker"
+        curl -LsSf https://astral.sh/uv/install.sh | sudo sh
+        # Move from default location to system PATH
+        # Try multiple possible locations where uv might be installed
+        if [ -f "/root/.local/bin/uv" ]; then
+            sudo cp /root/.local/bin/uv /usr/local/bin/uv
+        elif [ -f "$HOME/.local/bin/uv" ]; then
+            sudo mv "$HOME/.local/bin/uv" /usr/local/bin/uv
+        elif [ -f "/root/.cargo/bin/uv" ]; then
+            sudo cp /root/.cargo/bin/uv /usr/local/bin/uv
+        elif [ -f "$HOME/.cargo/bin/uv" ]; then
+            sudo mv "$HOME/.cargo/bin/uv" /usr/local/bin/uv
+        fi
+        sudo chmod +x /usr/local/bin/uv 2>/dev/null || true
+    else
+        # Standard user installation
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        # Add to PATH for current session (try both possible locations)
+        export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    fi
 
     if command_exists uv; then
         log_success "uv installation completed"

@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
-    command: bash -c "just run"
+    command: bash -c "just install && just run"
     stdin_open: true
     tty: true
     networks:
@@ -25,7 +25,7 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
-    command: bash -c "just test"
+    command: bash -c "just install && just test"
     networks:
       - lib-network
 

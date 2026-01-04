@@ -90,7 +90,7 @@ teardown() {
 
     # Template-specific commands should be included
     [ -f "$EXTRACT_DIR/.claude/commands/upgrade.md" ]
-    [ -f "$EXTRACT_DIR/.claude/commands/adapt.md" ]
+    # Note: adapt.md was removed - this is a Python-specific template, not multi-language
     [ -f "$EXTRACT_DIR/.claude/commands/README.md" ]
 
     # Plugin-provided commands should not be in template
