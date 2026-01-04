@@ -1,3 +1,9 @@
+## [1.0.4](https://github.com/cloudvoyant/nv-pylib-template/compare/v1.0.3...v1.0.4) (2026-01-04)
+
+### Bug Fixes
+
+* scaffolding issues fixed, docker build and test now functional
+
 ## [1.0.3](https://github.com/cloudvoyant/nv-pylib-template/compare/v1.0.2...v1.0.3) (2025-12-23)
 
 ### Bug Fixes
